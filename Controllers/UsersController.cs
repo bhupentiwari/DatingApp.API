@@ -9,11 +9,12 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using System.Security.Claims;
 
 namespace DatingApp.API.Controllers
 {
-    [Route("api/[controller]")]
     [ApiController]
+    [Route("api/[controller]")]    
     [Authorize]
     public class UsersController : ControllerBase
     {
@@ -37,9 +38,27 @@ namespace DatingApp.API.Controllers
         [HttpGet("{id}")]
         public async Task<IActionResult> GetUser(int id) 
         {
+          
             var user = await _repo.GetUser(id);
             var userToReturn = _mapper.Map<UserForDetailedDto>(user);
             return Ok(userToReturn);
+        }
+
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdateUser(int id, [FromBody]UserForUpdateDto userForUpdateDto){
+
+            if (id != int.Parse(User.FindFirst(ClaimTypes.NameIdentifier).Value )) {
+                   return Unauthorized();
+               }
+            var userFromRep = await _repo.GetUser(id);
+            
+            _mapper.Map(userForUpdateDto, userFromRep);
+
+            if(await _repo.SaveAll())
+                return NoContent();
+
+            throw new Exception($"Updating user {id} faild on Save");
+
         }
 
     }
