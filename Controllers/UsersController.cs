@@ -11,6 +11,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using System.Security.Claims;
 using DatingApp.API.Helpers;
+using DatingApp.API.Models;
 
 namespace DatingApp.API.Controllers
 {
@@ -78,6 +79,34 @@ namespace DatingApp.API.Controllers
             throw new Exception($"Updating user {id} faild on Save");
 
         }
+        [HttpPost("{id}/like/{recepientId}")]
+        public async Task<IActionResult> LikeUser(int id,int recepientId)       
+        {
+            if (id != int.Parse(User.FindFirst(ClaimTypes.NameIdentifier).Value )) {
+                   return Unauthorized();
+               }
 
+            var like = await _repo.GetLike(id,recepientId);
+
+            if(like!= null)
+                return BadRequest("You have already like this user");
+            
+            if(await _repo.GetUser(recepientId) ==null)
+             return NotFound();
+
+           
+            Like ob1 = new Like{
+                LikerId = id,
+                LikeeId = recepientId
+            };
+
+            _repo.Add<Like>(ob1);
+
+            if( await _repo.SaveAll()){
+                return Ok();
+            }
+
+            return BadRequest("Falied to like the user");
+        }
     }
 }

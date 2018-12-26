@@ -34,13 +34,22 @@ namespace DatingApp.API.Data
         public async Task<PagedList<User>> GetUsers(UserParams userParams)
         {
            var users =  _context.Users.Include(p => p.Photos).OrderByDescending(p =>p.LastActive).AsQueryable();     
+          
            users = users.Where(p => p.Id != userParams.UserId);
+          
            users = users.Where(p => p.Gender == userParams.Gender);
-        //    if(userParams.MinAge==0)
-        //    userParams.MinAge =18;
-        //    if(userParams.MaxAge ==0)
-        //    userParams.MaxAge = 99;
-            if(userParams.MinAge!=18 || userParams.MaxAge!=99){
+      
+            if(userParams.Likers){
+                var userLikers  = await GetUserLikes(userParams.UserId,userParams.Likers);
+                users = users.Where(u => userLikers.Contains(u.Id));
+            }
+
+            if(userParams.Likees){
+                var userLikees  = await GetUserLikes(userParams.UserId,userParams.Likers);
+                users = users.Where(u => userLikees.Contains(u.Id));
+            }
+           
+           if(userParams.MinAge!=18 || userParams.MaxAge!=99){
                 var minDob = DateTime.Today.AddYears(-userParams.MaxAge-5);
                 var maxDob = DateTime.Today.AddYears(-userParams.MinAge);
 
@@ -77,6 +86,28 @@ namespace DatingApp.API.Data
         {
             var photo = await _context.Photos.FirstOrDefaultAsync(p => p.Id ==id );
             return photo;
+        }
+
+        public async Task<Like> GetLike(int userId, int recepientId)
+        {
+            /* If records doesn not exist it will return null */
+           return await _context.Likes.FirstOrDefaultAsync(
+               u => u.LikerId ==userId && u.LikeeId ==recepientId);
+        }
+
+        public async Task<IEnumerable<int>> GetUserLikes(int id,bool likers) {
+
+            var user = await _context.Users
+                    .Include(x =>x.Likers)
+                    .Include(x => x.Likees)
+                    .FirstOrDefaultAsync(u => u.Id == id);
+
+            if(likers){
+                return  user.Likers.Where(u => u.LikeeId ==id).Select(i => i.LikerId);
+            }
+            else{
+                return  user.Likees.Where(u => u.LikerId ==id).Select(i => i.LikeeId);
+            }
         }
     }
 }
